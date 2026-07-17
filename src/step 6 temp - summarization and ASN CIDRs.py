@@ -18,9 +18,56 @@ OUTPUT_FILE = 'sum/output/ipsum.lst'
 # Path to the GeoLite2 ASN database
 GEOIP_DB_PATH = 'sum/GeoLite2-ASN.mmdb'
 GEOIP_DB_URLS = [
-    'https://git.io/GeoLite2-ASN.mmdb',
     'https://github.com/P3TERX/GeoLite.mmdb/raw/download/GeoLite2-ASN.mmdb'
 ]
+
+# Cloudflare official IP ranges endpoint (public, no auth required)
+CLOUDFLARE_IPS_URL = 'https://api.cloudflare.com/client/v4/ips'
+
+# Static fallback Cloudflare ranges (kept in sync with the public list).
+# Used only if the live API cannot be reached.
+CLOUDFLARE_FALLBACK_CIDRS = [
+    # IPv4
+    '173.245.48.0/20',
+    '103.21.244.0/22',
+    '103.22.200.0/22',
+    '103.31.4.0/22',
+    '141.101.64.0/18',
+    '108.162.192.0/18',
+    '190.93.240.0/20',
+    '188.114.96.0/20',
+    '197.234.240.0/22',
+    '198.41.128.0/17',
+    '162.158.0.0/15',
+    '104.16.0.0/13',
+    '104.24.0.0/14',
+    '172.64.0.0/13',
+    '131.0.72.0/22',
+    # IPv6
+    '2400:cb00::/32',
+    '2606:4700::/32',
+    '2803:f800::/32',
+    '2405:b500::/32',
+    '2405:8100::/32',
+    '2a06:98c0::/29',
+    '2c0f:f248::/29',
+]
+
+# Function to fetch Cloudflare's official IP ranges, falling back to a
+# hard-coded list if the API is unreachable.
+def fetch_cloudflare_cidrs():
+    try:
+        response = requests.get(CLOUDFLARE_IPS_URL, timeout=30)
+        response.raise_for_status()
+        data = response.json().get('result', {})
+        cidrs = list(data.get('ipv4_cidrs', [])) + list(data.get('ipv6_cidrs', []))
+        if cidrs:
+            logging.info(f'Fetched {len(cidrs)} Cloudflare CIDRs from the live API.')
+            return cidrs
+        logging.warning('Cloudflare API returned an empty list; using fallback.')
+    except Exception as e:
+        logging.warning(f'Failed to fetch Cloudflare IPs from API: {e}; using fallback.')
+    return list(CLOUDFLARE_FALLBACK_CIDRS)
 
 # Function to download the GeoLite2 ASN database
 def download_geolite2_asn_db():
@@ -198,7 +245,10 @@ def main():
     for domain in domains:
         company_cidrs.update(process_domain_for_asn(domain, processed_asns))
 
-    final_cidrs = set(summarized_ips) | company_cidrs
+    # Merge Cloudflare's official ranges (IPv4 + IPv6) into the final list.
+    cloudflare_cidrs = fetch_cloudflare_cidrs()
+
+    final_cidrs = set(summarized_ips) | company_cidrs | set(cloudflare_cidrs)
     write_summarized_ips(final_cidrs, OUTPUT_FILE)
 
 if __name__ == '__main__':
