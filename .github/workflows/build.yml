@@ -149,15 +149,12 @@ jobs:
         CURRENT_DATE=$(date +%d-%m-%Y)
         BRANCH="update-$CURRENT_DATE"
 
-        cp $GITHUB_WORKSPACE/sum/output/domains_all.lst $GITHUB_WORKSPACE/domains_all.lst
-        cp $GITHUB_WORKSPACE/sum/output/ipsum.lst $GITHUB_WORKSPACE/ipsum.lst
-        cp $GITHUB_WORKSPACE/sum/input/ooni_domains.lst $GITHUB_WORKSPACE/ooni_domains.lst
-
         git config user.name "github-actions[bot]"
         git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-        # Reuse the branch if it already exists (e.g. same-day re-run) instead
-        # of failing the push with a non-fast-forward rejection.
+        # Switch to the update branch BEFORE copying the freshly built outputs
+        # into the working tree, so the checkout can't collide with local
+        # modifications to the tracked .lst files.
         if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
           echo "Branch $BRANCH already exists on remote; resetting to its tip."
           git fetch origin "$BRANCH"
@@ -165,6 +162,10 @@ jobs:
         else
           git checkout -b "$BRANCH"
         fi
+
+        cp $GITHUB_WORKSPACE/sum/output/domains_all.lst $GITHUB_WORKSPACE/domains_all.lst
+        cp $GITHUB_WORKSPACE/sum/output/ipsum.lst $GITHUB_WORKSPACE/ipsum.lst
+        cp $GITHUB_WORKSPACE/sum/input/ooni_domains.lst $GITHUB_WORKSPACE/ooni_domains.lst
 
         git add domains_all.lst ipsum.lst ooni_domains.lst
 
