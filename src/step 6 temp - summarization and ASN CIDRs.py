@@ -21,11 +21,14 @@ GEOIP_DB_URLS = [
     'https://github.com/P3TERX/GeoLite.mmdb/raw/download/GeoLite2-ASN.mmdb'
 ]
 
-# Cloudflare official IP ranges endpoint (public, no auth required)
+# Cloudflare's ASN. We pull the full BGP footprint (every prefix announced by
+# AS13335) so Spectrum/WARP ranges like 8.x that the public /ips API omits are
+# covered too. The public API list below is only a fallback.
+CLOUDFLARE_ASN = 13335
 CLOUDFLARE_IPS_URL = 'https://api.cloudflare.com/client/v4/ips'
 
-# Static fallback Cloudflare ranges (kept in sync with the public list).
-# Used only if the live API cannot be reached.
+# Static fallback Cloudflare ranges (public /ips list). Used only if both the
+# ip.guide ASN lookup and the Cloudflare API are unreachable.
 CLOUDFLARE_FALLBACK_CIDRS = [
     # IPv4
     '173.245.48.0/20',
@@ -53,20 +56,29 @@ CLOUDFLARE_FALLBACK_CIDRS = [
     '2c0f:f248::/29',
 ]
 
-# Function to fetch Cloudflare's official IP ranges, falling back to a
-# hard-coded list if the API is unreachable.
-def fetch_cloudflare_cidrs():
+# Function to fetch Cloudflare's full prefix set (AS13335) via ip.guide,
+# falling back to the public /ips API, then to a hard-coded list.
+def fetch_cloudflare_asn_cidrs():
+    # Primary: full BGP footprint of AS13335 (includes Spectrum/WARP ranges).
+    cidrs = get_cidr_for_asn(CLOUDFLARE_ASN)
+    if cidrs:
+        logging.info(f'Fetched {len(cidrs)} Cloudflare prefixes from AS{CLOUDFLARE_ASN}.')
+        return cidrs
+
+    # Secondary: public /ips API (edge ranges only, no Spectrum).
     try:
         response = requests.get(CLOUDFLARE_IPS_URL, timeout=30)
         response.raise_for_status()
         data = response.json().get('result', {})
-        cidrs = list(data.get('ipv4_cidrs', [])) + list(data.get('ipv6_cidrs', []))
-        if cidrs:
-            logging.info(f'Fetched {len(cidrs)} Cloudflare CIDRs from the live API.')
-            return cidrs
-        logging.warning('Cloudflare API returned an empty list; using fallback.')
+        api_cidrs = list(data.get('ipv4_cidrs', [])) + list(data.get('ipv6_cidrs', []))
+        if api_cidrs:
+            logging.warning(f'AS lookup failed; using {len(api_cidrs)} Cloudflare CIDRs from /ips API.')
+            return api_cidrs
     except Exception as e:
-        logging.warning(f'Failed to fetch Cloudflare IPs from API: {e}; using fallback.')
+        logging.warning(f'Cloudflare /ips API also failed: {e}')
+
+    # Last resort: hard-coded fallback.
+    logging.warning('All Cloudflare lookups failed; using static fallback list.')
     return list(CLOUDFLARE_FALLBACK_CIDRS)
 
 # Function to download the GeoLite2 ASN database
@@ -245,8 +257,10 @@ def main():
     for domain in domains:
         company_cidrs.update(process_domain_for_asn(domain, processed_asns))
 
-    # Merge Cloudflare's official ranges (IPv4 + IPv6) into the final list.
-    cloudflare_cidrs = fetch_cloudflare_cidrs()
+    # Merge Cloudflare into the final list. We want the FULL AS13335 footprint
+    # (all announced prefixes, including Spectrum/WARP ranges like 8.x that the
+    # public /ips API omits), so we pull every prefix advertised by the ASN.
+    cloudflare_cidrs = fetch_cloudflare_asn_cidrs()
 
     final_cidrs = set(summarized_ips) | company_cidrs | set(cloudflare_cidrs)
     write_summarized_ips(final_cidrs, OUTPUT_FILE)
