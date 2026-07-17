@@ -225,23 +225,40 @@ jobs:
         echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
       shell: bash
 
-    - name: Create Pre-release with gh CLI
+    - name: Create Release with gh CLI
       run: |
-        gh release create "$TAG_NAME" \
-          ./sum/output/domains_all.lst \
-          ./sum/output/ipsum.lst \
-          ./src/xray-geoip/output/dat/geoip.dat \
-          ./src/xray-geosite/geosite.dat \
-          ./src/sing-box-files/refilter/geoip.db \
-          ./src/sing-box-files/refilter/geosite.db \
-          ./src/sing-box-files/refilter/ruleset-domain-refilter_domains.srs \
-          ./src/sing-box-files/refilter/ruleset-domain-refilter_domains.json \
-          ./src/sing-box-files/refilter/ruleset-ip-refilter_ipsum.srs \
-          ./src/sing-box-files/refilter/ruleset-ip-refilter_ipsum.json \
-          --title "$RELEASE_NAME" \
-          --notes "This is the automatic $RELEASE_NAME creation." \
-          --draft \
-          --prerelease
+        # Publish as the stable "latest" release (no --draft / --prerelease) so
+        # the /releases/latest/download/<asset> URLs resolve.
+        if gh release view "$TAG_NAME" >/dev/null 2>&1; then
+          echo "Release $TAG_NAME already exists; updating assets."
+          gh release upload "$TAG_NAME" \
+            ./sum/output/domains_all.lst \
+            ./sum/output/ipsum.lst \
+            ./src/xray-geoip/output/dat/geoip.dat \
+            ./src/xray-geosite/geosite.dat \
+            ./src/sing-box-files/refilter/geoip.db \
+            ./src/sing-box-files/refilter/geosite.db \
+            ./src/sing-box-files/refilter/ruleset-domain-refilter_domains.srs \
+            ./src/sing-box-files/refilter/ruleset-domain-refilter_domains.json \
+            ./src/sing-box-files/refilter/ruleset-ip-refilter_ipsum.srs \
+            ./src/sing-box-files/refilter/ruleset-ip-refilter_ipsum.json \
+            --clobber
+        else
+          gh release create "$TAG_NAME" \
+            ./sum/output/domains_all.lst \
+            ./sum/output/ipsum.lst \
+            ./src/xray-geoip/output/dat/geoip.dat \
+            ./src/xray-geosite/geosite.dat \
+            ./src/sing-box-files/refilter/geoip.db \
+            ./src/sing-box-files/refilter/geosite.db \
+            ./src/sing-box-files/refilter/ruleset-domain-refilter_domains.srs \
+            ./src/sing-box-files/refilter/ruleset-domain-refilter_domains.json \
+            ./src/sing-box-files/refilter/ruleset-ip-refilter_ipsum.srs \
+            ./src/sing-box-files/refilter/ruleset-ip-refilter_ipsum.json \
+            --title "$RELEASE_NAME" \
+            --notes "This is the automatic $RELEASE_NAME creation." \
+            --latest
+        fi
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
