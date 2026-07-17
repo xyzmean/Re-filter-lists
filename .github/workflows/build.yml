@@ -156,7 +156,16 @@ jobs:
         git config user.name "github-actions[bot]"
         git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-        git checkout -b "$BRANCH"
+        # Reuse the branch if it already exists (e.g. same-day re-run) instead
+        # of failing the push with a non-fast-forward rejection.
+        if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
+          echo "Branch $BRANCH already exists on remote; resetting to its tip."
+          git fetch origin "$BRANCH"
+          git checkout -B "$BRANCH" "origin/$BRANCH"
+        else
+          git checkout -b "$BRANCH"
+        fi
+
         git add domains_all.lst ipsum.lst ooni_domains.lst
 
         if git diff --cached --quiet; then
@@ -165,18 +174,24 @@ jobs:
         fi
 
         git commit -m "$CURRENT_DATE Update"
-        git push -u origin "$BRANCH"
+        git push -u origin "$BRANCH" --force-with-lease
 
     - name: Create PR
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         CURRENT_DATE=$(date +%d-%m-%Y)
-        gh pr create \
-          --base main \
-          --head "update-$CURRENT_DATE" \
-          --title "$CURRENT_DATE Update" \
-          --body "$CURRENT_DATE Automated update of domains_all.lst, ipsum.lst, and ooni_domains.lst."
+        BRANCH="update-$CURRENT_DATE"
+        # If a PR for this branch is already open, skip creation instead of failing.
+        if gh pr view "$BRANCH" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+          echo "PR for $BRANCH already exists; skipping creation."
+        else
+          gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title "$CURRENT_DATE Update" \
+            --body "$CURRENT_DATE Automated update of domains_all.lst, ipsum.lst, and ooni_domains.lst."
+        fi
 
       
     - name: Upload Build Artifacts
