@@ -70,14 +70,14 @@
         "tag": "refilter_domains",
         "type": "remote",
         "format": "binary",
-        "url": "https://github.com/1andrevich/Re-filter-lists/releases/latest/download/ruleset-domain-refilter_domains.srs",
+        "url": "https://github.com/xyzmean/Re-filter-lists/releases/latest/download/ruleset-domain-refilter_domains.srs",
         "download_detour": "direct"
       },
       {
         "tag": "refilter_ipsum",
         "type": "remote",
         "format": "binary",
-        "url": "https://github.com/1andrevich/Re-filter-lists/releases/latest/download/ruleset-ip-refilter_ipsum.srs",
+        "url": "https://github.com/xyzmean/Re-filter-lists/releases/latest/download/ruleset-ip-refilter_ipsum.srs",
         "download_detour": "direct"
       }
     ]
@@ -192,14 +192,14 @@ RoutingA of V2RayA Example:
         "tag": "refilter_domains",
         "type": "remote",
         "format": "binary",
-        "url": "https://github.com/1andrevich/Re-filter-lists/releases/latest/download/ruleset-domain-refilter_domains.srs",
+        "url": "https://github.com/xyzmean/Re-filter-lists/releases/latest/download/ruleset-domain-refilter_domains.srs",
         "download_detour": "direct"
       },
       {
         "tag": "refilter_ipsum",
         "type": "remote",
         "format": "binary",
-        "url": "https://github.com/1andrevich/Re-filter-lists/releases/latest/download/ruleset-ip-refilter_ipsum.srs",
+        "url": "https://github.com/xyzmean/Re-filter-lists/releases/latest/download/ruleset-ip-refilter_ipsum.srs",
         "download_detour": "direct"
       }
     ]

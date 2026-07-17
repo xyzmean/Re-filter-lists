@@ -6,8 +6,19 @@ permissions:
 
 on:
   workflow_dispatch: # Allows manual trigger of the workflow
+  push:
+    branches:
+      - main
+    paths:
+      # Only rebuild when something that affects the output changes,
+      # to avoid loops with the bot's own update commits.
+      - 'community.lst'
+      - 'community_ips.lst'
+      - 'discord_ips.lst'
+      - 'src/**'
+      - '.github/workflows/build.yml'
   schedule:
-    - cron: '5 0 */6 * *' # Runs every 6th day at midnight UTC
+    - cron: '5 0 * * *' # Runs daily shortly after midnight UTC
 
 jobs:
   run-python-scripts:
